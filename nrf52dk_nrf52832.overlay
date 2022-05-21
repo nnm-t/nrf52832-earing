@@ -1,0 +1,73 @@
+// To get started, press Ctrl+Space to bring up the completion menu and view the available nodes.
+// For more help, browse the DeviceTree documentation at https://docs.zephyrproject.org/latest/guides/dts/index.html
+
+/ {
+	rgb_led: rgb-led {
+		compatible = "pwm-leds";
+		red: red {
+			pwms = <&pwm0 28>;
+		};
+		green: green {
+			pwms = <&pwm0 29>;
+		};
+		blue: blue {
+			pwms = <&pwm0 30>;
+		};
+	};
+};
+
+&led1 {
+	gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
+};
+
+&led2 {
+	status = "disabled";
+	/delete-property/ gpios;
+};
+
+&led3 {
+	status = "disabled";
+	/delete-property/ gpios;
+};
+
+&button0 {
+	gpios = <&gpio0 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+};
+
+&button1 {
+	gpios = <&gpio0 11 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+};
+
+&button3 {
+	status = "disabled";
+	/delete-property/ gpios;
+};
+
+&pwm0 {
+	ch0-pin = <28>;
+	/delete-property/ ch0-inverted;
+	ch1-pin = <29>;
+	ch2-pin = <30>;
+};
+
+
+&spi0 {
+	status = "disabled";
+	/delete-property/ sck-pin;
+	/delete-property/ mosi-pin;
+	/delete-property/ miso-pin;
+};
+
+&spi1 {
+	status = "disabled";
+	/delete-property/ sck-pin;
+	/delete-property/ mosi-pin;
+	/delete-property/ miso-pin;
+};
+
+&spi2 {
+	status = "disabled";
+	/delete-property/ sck-pin;
+	/delete-property/ mosi-pin;
+	/delete-property/ miso-pin;
+};
