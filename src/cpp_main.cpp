@@ -8,30 +8,20 @@
 #include "ble_gap.h"
 #include "ble_gatt.h"
 
+#include "rgb_led.h"
+
 // TEST LED
 #define LED0_NODE					DT_ALIAS(led0)
 
-// RGB LED
-#define RGB_LED_NODE				DT_NODELABEL(rgb_led)
-#define RGB_LED_RED_NODE			DT_CHILD(RGB_LED_NODE, red)
-#define RGB_LED_GREEN_NODE			DT_CHILD(RGB_LED_NODE, green)
-#define RGB_LED_BLUE_NODE			DT_CHILD(RGB_LED_NODE, blue)
+namespace {
+	GPIO led0(GPIO_DT_SPEC_GET(LED0_NODE, gpios));
 
-#define RGB_LED_RED_CTLR_NODE		DT_PWMS_CTLR(RGB_LED_RED_NODE)
-#define RGB_LED_RED_CHANNEL			DT_PWMS_CHANNEL(RGB_LED_RED_NODE)
-#define RGB_LED_RED_FLAGS			DT_PWMS_FLAGS(RGB_LED_RED_NODE)
-#define RGB_LED_GREEN_CTLR_NODE		DT_PWMS_CTLR(RGB_LED_GREEN_NODE)
-#define RGB_LED_GREEN_CHANNEL		DT_PWMS_CHANNEL(RGB_LED_GREEN_NODE)
-#define RGB_LED_GREEN_FLAGS			DT_PWMS_FLAGS(RGB_LED_GREEN_NODE)
-#define RGB_LED_BLUE_CTLR_NODE		DT_PWMS_CTLR(RGB_LED_BLUE_NODE)
-#define RGB_LED_BLUE_CHANNEL		DT_PWMS_CHANNEL(RGB_LED_BLUE_NODE)
-#define RGB_LED_BLUE_FLAGS			DT_PWMS_FLAGS(RGB_LED_BLUE_NODE)
+	PWM rgb_led_red(DEVICE_DT_GET(RGB_LED_RED_CTLR_NODE), RGB_LED_RED_CHANNEL, RGB_LED_RED_FLAGS);
+	PWM rgb_led_green(DEVICE_DT_GET(RGB_LED_GREEN_CTLR_NODE), RGB_LED_BLUE_CHANNEL, RGB_LED_GREEN_FLAGS);
+	PWM rgb_led_blue(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS);
 
-enum {
-	RGB_LED_RED_INDEX,
-	RGB_LED_GREEN_INDEX,
-	RGB_LED_BLUE_INDEX
-};
+	std::array<PWM*, 3> rgb_leds = { &rgb_led_red, &rgb_led_green, &rgb_led_blue };
+}
 
 // GAP/GATT
 #define BT_UUID_SERVICE				BT_UUID_128_ENCODE(0x14527572, 0xe6df, 0x4a0b, 0xa13f, 0x100ce76efc36)
@@ -44,7 +34,7 @@ namespace {
 		BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xc5327e5c, 0xdd86, 0x424c, 0x84de, 0x1a3cb594a228))
 	};
 
-	std::array<uint8_t, 3> rgb_led_values = {0, 0, 0};
+	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_initial_pulse, RGBLED::pwm_initial_pulse, RGBLED::pwm_initial_pulse};
 
 	const struct bt_le_adv_param* advertising_param = BLEGAP::get_advertising_param();
 	struct bt_data advertising_data[] = {
@@ -58,29 +48,19 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_RED_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_red>>,
 		&rgb_led_values[RGB_LED_RED_INDEX]),
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_GREEN_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_green>>,
 		&rgb_led_values[RGB_LED_GREEN_INDEX]),
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_BLUE_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
-		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_blue>>,
 		&rgb_led_values[RGB_LED_BLUE_INDEX])
 );
-
-namespace {
-	GPIO led0(GPIO_DT_SPEC_GET(LED0_NODE, gpios));
-
-	std::array<PWM, 3> rgb_leds = { 
-		PWM(DEVICE_DT_GET(RGB_LED_RED_CTLR_NODE), RGB_LED_RED_CHANNEL, RGB_LED_RED_FLAGS),
-		PWM(DEVICE_DT_GET(RGB_LED_GREEN_CTLR_NODE), RGB_LED_BLUE_CHANNEL, RGB_LED_GREEN_FLAGS),
-		PWM(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS)
-	};
-}
 
 static void timer_handler(struct k_timer* timer)
 {
@@ -119,20 +99,9 @@ void cpp_main()
 		return;
 	}
 
-	for (PWM& rgb_led : rgb_leds)
+	for (PWM* rgb_led : rgb_leds)
 	{
-		if (!rgb_led.is_ready())
-		{
-			printk("PWM is not ready\n");
-			continue;
-		}
-
-		rgb_led.set_usec(2000, 100);
-		if (ret)
-		{
-			printk("PWM write failed: %d\n", ret);
-			continue;
-		}
+		RGBLED::init(rgb_led);
 	}
 
 	ret = BLE::init();

@@ -15,4 +15,5 @@ target_sources(app PRIVATE
 	src/ble.cpp
 	src/ble_gap.cpp
 	src/ble_gatt.cpp
+	src/rgb_led.cpp
 )
