@@ -12,4 +12,7 @@ target_sources(app PRIVATE
 	src/cpp_main.cpp
 	src/gpio.cpp
 	src/pwm.cpp
+	src/ble.cpp
+	src/ble_gap.cpp
+	src/ble_gatt.cpp
 )

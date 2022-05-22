@@ -32,8 +32,10 @@ public:
 		return set(GPIO_ACTIVE_HIGH);
 	}
 
-	inline int set_low()
+	int set_low()
 	{
 		return set(GPIO_ACTIVE_HIGH);
 	}
+
+	int toggle();
 };

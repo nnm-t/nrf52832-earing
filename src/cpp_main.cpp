@@ -2,13 +2,11 @@
 
 #include <array>
 
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/uuid.h>
-#include <bluetooth/gatt.h>
-
 #include "gpio.h"
 #include "pwm.h"
+#include "ble.h"
+#include "ble_gap.h"
+#include "ble_gatt.h"
 
 // TEST LED
 #define LED0_NODE					DT_ALIAS(led0)
@@ -48,7 +46,8 @@ namespace {
 
 	std::array<uint8_t, 3> rgb_led_values = {0, 0, 0};
 
-	struct bt_data ad_data[] = {
+	const struct bt_le_adv_param* advertising_param = BLEGAP::get_advertising_param();
+	struct bt_data advertising_data[] = {
 		BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR),
 		BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_SERVICE)
 	};
@@ -58,8 +57,19 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 	BT_GATT_PRIMARY_SERVICE(&service_uuid),
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_RED_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-		BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT,
-		nullptr, nullptr, &rgb_led_values[RGB_LED_RED_INDEX])
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		&rgb_led_values[RGB_LED_RED_INDEX]),
+	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_GREEN_INDEX].uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		&rgb_led_values[RGB_LED_GREEN_INDEX]),
+	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_BLUE_INDEX].uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic,
+		&rgb_led_values[RGB_LED_BLUE_INDEX])
 );
 
 namespace {
@@ -71,6 +81,24 @@ namespace {
 		PWM(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS)
 	};
 }
+
+static void timer_handler(struct k_timer* timer)
+{
+	// GPIO
+	int ret = led0.toggle();
+	if (ret)
+	{
+		printk("GPIO led0 write failed: %d\n", ret);
+		return;
+	}
+}
+
+static void timer_stop_handler(struct k_timer* timer)
+{
+	printk("timer stopped");
+}
+
+K_TIMER_DEFINE(timer, timer_handler, timer_stop_handler);
 
 void cpp_main()
 {
@@ -99,7 +127,7 @@ void cpp_main()
 			continue;
 		}
 
-		rgb_led.set_usec(2000, 1000);
+		rgb_led.set_usec(2000, 100);
 		if (ret)
 		{
 			printk("PWM write failed: %d\n", ret);
@@ -107,23 +135,20 @@ void cpp_main()
 		}
 	}
 
-	while (1)
+	ret = BLE::init();
+	if (ret != 0)
 	{
-		ret = led0.set_high();
-		if (ret)
-		{
-			printk("GPIO led0 write failed: %d\n", ret);
-			return;
-		}
-		k_sleep(K_MSEC(100));
-
-		ret = led0.set_low();
-		if (ret)
-		{
-			printk("GPIO led0 write failed: %d\n", ret);
-			return;
-		}
-		k_sleep(K_MSEC(100));
+		printk("Bluetooth init failed: %d", ret);
+		return;
 	}
 
+	ret = BLEGAP::start_advertising(advertising_param, advertising_data, ARRAY_SIZE(advertising_data));
+	if (ret != 0) {
+		printk("BLE Advertising failed to start: %d", ret);
+		return;
+	}
+
+	BLEGATT::init();
+
+	k_timer_start(&timer, K_NO_WAIT, K_MSEC(100));
 }
