@@ -152,8 +152,6 @@ void cpp_main()
 		return;
 	}
 
-	temp_sensor.init(temp_sensor_device);
-
 	if (!button1.is_ready())
 	{
 		printk("GPIO button1 is not ready\n");
