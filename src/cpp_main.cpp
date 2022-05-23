@@ -8,11 +8,14 @@
 #include "ble.h"
 #include "ble_gap.h"
 #include "ble_gatt.h"
+#include "temp_sensor.h"
 
 #include "rgb_led.h"
 
 // TEST LED
 #define LED0_NODE					DT_ALIAS(led0)
+// Temp Sensor
+#define TEMP_SENSOR_NODE			DT_NODELABEL(temp)
 
 namespace {
 	GPIO led0(GPIO_DT_SPEC_GET(LED0_NODE, gpios));
@@ -22,6 +25,9 @@ namespace {
 	PWM rgb_led_blue(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS);
 
 	std::array<PWM*, 3> rgb_leds = { &rgb_led_red, &rgb_led_green, &rgb_led_blue };
+
+	const struct device* temp_sensor_device = DEVICE_DT_GET(TEMP_SENSOR_NODE);
+	TempSensor temp_sensor(temp_sensor_device);
 }
 
 // GAP/GATT
@@ -94,6 +100,9 @@ static void timer_handler(struct k_timer* timer)
 		printk("GPIO led0 write failed: %d\n", ret);
 		return;
 	}
+
+	temp_sensor.fetch();
+	printk("Soc die temperature: %f\n", temp_sensor.get_value());
 }
 
 static void timer_stop_handler(struct k_timer* timer)
@@ -143,6 +152,8 @@ void cpp_main()
 		return;
 	}
 
+	temp_sensor.init(temp_sensor_device);
+
 	if (!button1.is_ready())
 	{
 		printk("GPIO button1 is not ready\n");
@@ -189,5 +200,5 @@ void cpp_main()
 	// LED: Init Completed
 	RGBLED::init_completed_blink(rgb_led_green);
 
-	k_timer_start(&timer, K_NO_WAIT, K_MSEC(100));
+	k_timer_start(&timer, K_NO_WAIT, K_MSEC(1000));
 }
