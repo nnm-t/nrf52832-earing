@@ -3,27 +3,22 @@
 #include <zephyr.h>
 #include <sys/printk.h>
 
-#include <drivers/gpio.h>
+#include "gpio_base.h"
 
-class GPIO
+class GPIO : public GPIOBase
 {
-	const struct device* _port;
-	const uint32_t _pin;
-
 public:
-	GPIO(const struct gpio_dt_spec spec) : _port(spec.port), _pin(spec.pin)
+	GPIO(const struct gpio_dt_spec spec) : GPIOBase(spec)
 	{
 
 	}
 
-	GPIO(const struct device* port, const uint32_t pin) : _port(port), _pin(pin)
+	GPIO(const struct device* port, const uint32_t pin) : GPIOBase(port, pin)
 	{
 
 	}
 
-	bool is_ready() const;
-
-	int configure(const gpio_flags_t flags);
+	int configure(const gpio_flags_t flags) override;
 
 	int set(const int value);
 

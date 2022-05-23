@@ -31,11 +31,15 @@ class RGBLED
 {
 	static constexpr const uint8_t characteristic_max_value = 255;
 	static constexpr const uint8_t pwm_period = characteristic_max_value;
+	static constexpr const int init_blink_interval = 250;
 
 public:
-	static constexpr const uint8_t pwm_initial_pulse = 0;
+	static constexpr const uint8_t pwm_on_pulse = 0x10;
+	static constexpr const uint8_t pwm_off_pulse = 0x00;
 
 	static void init(PWM* led_pwm);
+
+	static void init_completed_blink(PWM& led_pwm);
 
 	template<PWM& LED_PWM> static void on_write_characteristic(uint8_t* value, uint16_t length, uint16_t offset);
 	

@@ -10,7 +10,9 @@ target_include_directories(app PRIVATE inc)
 target_sources(app PRIVATE
 	src/main.c
 	src/cpp_main.cpp
+	src/gpio_base.cpp
 	src/gpio.cpp
+	src/gpio_interrupt.cpp
 	src/pwm.cpp
 	src/ble.cpp
 	src/ble_gap.cpp

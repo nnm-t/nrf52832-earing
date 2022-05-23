@@ -3,6 +3,7 @@
 #include <array>
 
 #include "gpio.h"
+#include "gpio_interrupt.h"
 #include "pwm.h"
 #include "ble.h"
 #include "ble_gap.h"
@@ -34,7 +35,7 @@ namespace {
 		BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xc5327e5c, 0xdd86, 0x424c, 0x84de, 0x1a3cb594a228))
 	};
 
-	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_initial_pulse, RGBLED::pwm_initial_pulse, RGBLED::pwm_initial_pulse};
+	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse};
 
 	const struct bt_le_adv_param* advertising_param = BLEGAP::get_advertising_param();
 	struct bt_data advertising_data[] = {
@@ -62,6 +63,7 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 		&rgb_led_values[RGB_LED_BLUE_INDEX])
 );
 
+// Timer
 static void timer_handler(struct k_timer* timer)
 {
 	// GPIO
@@ -80,6 +82,18 @@ static void timer_stop_handler(struct k_timer* timer)
 
 K_TIMER_DEFINE(timer, timer_handler, timer_stop_handler);
 
+// Button
+#define BUTTON1_NODE				DT_NODELABEL(button1)
+
+namespace {
+	GPIOInterrupt button1(GPIO_DT_SPEC_GET(BUTTON1_NODE, gpios));
+
+	void on_button1_pushed(const struct device* port, struct gpio_callback* callback, gpio_port_pins_t pins)
+	{
+		printk("button1 pushed\n");
+	}
+}
+
 void cpp_main()
 {
 	int ret;
@@ -95,8 +109,27 @@ void cpp_main()
 	ret = led0.configure(GPIO_OUTPUT_ACTIVE);
 	if (ret)
 	{
-		printk("GPIO led0 configure is failed: %d\n", ret);
+		printk("GPIO led0 configure failed: %d\n", ret);
 		return;
+	}
+
+	if (!button1.is_ready())
+	{
+		printk("GPIO button1 is not ready\n");
+		return;
+	}
+
+	ret = button1.configure(GPIO_INT_EDGE_RISING);
+	if (ret)
+	{
+		printk("GPIO button1 configure failed: %d\n", ret);
+	}
+
+	button1.init_callback(on_button1_pushed);
+	ret = button1.add_callback();
+	if (ret)
+	{
+		printk("GPIO button1 add callback failed: %d\n", ret);
 	}
 
 	for (PWM* rgb_led : rgb_leds)
@@ -107,17 +140,20 @@ void cpp_main()
 	ret = BLE::init();
 	if (ret != 0)
 	{
-		printk("Bluetooth init failed: %d", ret);
+		printk("Bluetooth init failed: %d\n", ret);
 		return;
 	}
 
 	ret = BLEGAP::start_advertising(advertising_param, advertising_data, ARRAY_SIZE(advertising_data));
 	if (ret != 0) {
-		printk("BLE Advertising failed to start: %d", ret);
+		printk("BLE Advertising failed to start: %d\n", ret);
 		return;
 	}
 
 	BLEGATT::init();
+
+	// LED: Init Completed
+	RGBLED::init_completed_blink(rgb_led_green);
 
 	k_timer_start(&timer, K_NO_WAIT, K_MSEC(100));
 }
