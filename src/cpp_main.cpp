@@ -42,6 +42,27 @@ namespace {
 		BT_DATA_BYTES(BT_DATA_FLAGS, BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR),
 		BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_SERVICE)
 	};
+
+	struct bt_conn_cb connection_callback = {};
+	struct bt_conn* connection = nullptr;
+
+	static void bt_on_connected(struct bt_conn* conn, uint8_t err)
+	{
+		if (err)
+		{
+			printk("BLE connection failed: %d\n", err);
+			return;
+		}
+
+		printk("BLE connected\n");
+		connection = conn;
+	}
+
+	static void bt_on_disconnected(struct bt_conn* conn, uint8_t reason)
+	{
+		connection = nullptr;
+		printk("BLE disconnected: reason=%d\n", reason);
+	}
 }
 
 BT_GATT_SERVICE_DEFINE(earing_service,
@@ -91,6 +112,15 @@ namespace {
 	void on_button1_pushed(const struct device* port, struct gpio_callback* callback, gpio_port_pins_t pins)
 	{
 		printk("button1 pushed\n");
+
+		// todo: 操作してからBLE繋いでもGATT_ERRORでConnection張れない
+		/*
+		if (connection != nullptr)
+		{
+			rgb_led_values[RGB_LED_RED_INDEX] = RGBLED::pwm_on_pulse;
+		}
+		rgb_leds[RGB_LED_RED_INDEX]->set_usec(RGBLED::pwm_period, RGBLED::pwm_on_pulse);
+		*/
 	}
 }
 
@@ -151,6 +181,10 @@ void cpp_main()
 	}
 
 	BLEGATT::init();
+
+	connection_callback.connected = bt_on_connected;
+	connection_callback.disconnected = bt_on_disconnected;
+	BLE::register_connection_callback(&connection_callback);
 
 	// LED: Init Completed
 	RGBLED::init_completed_blink(rgb_led_green);

@@ -13,5 +13,5 @@ void BLEGATT::init()
 
 void BLEGATT::mtu_updated(struct bt_conn* conn, uint16_t tx, uint16_t rx)
 {
-	printk("Updated MTU: TX=%d, RX=%d", tx, rx);
+	printk("Updated MTU: TX=%d, RX=%d\n", tx, rx);
 }
