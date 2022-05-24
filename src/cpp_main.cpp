@@ -54,7 +54,7 @@ namespace {
 	struct bt_conn_cb connection_callback = {};
 	struct bt_conn* connection = nullptr;
 
-	static void bt_on_connected(struct bt_conn* conn, uint8_t err)
+	void bt_on_connected(struct bt_conn* conn, uint8_t err)
 	{
 		if (err)
 		{
@@ -66,11 +66,13 @@ namespace {
 		connection = conn;
 	}
 
-	static void bt_on_disconnected(struct bt_conn* conn, uint8_t reason)
+	void bt_on_disconnected(struct bt_conn* conn, uint8_t reason)
 	{
 		connection = nullptr;
 		printk("BLE disconnected: reason=%d\n", reason);
 	}
+
+	struct bt_gatt_cpf led_value_cpf;
 }
 
 BT_GATT_SERVICE_DEFINE(earing_service,
@@ -80,16 +82,22 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_red>>,
 		&rgb_led_values[RGB_LED_RED_INDEX]),
+	BT_GATT_CUD("RGB LED Red Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	BT_GATT_CPF(&led_value_cpf),
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_GREEN_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_green>>,
 		&rgb_led_values[RGB_LED_GREEN_INDEX]),
+	BT_GATT_CUD("RGB LED Green Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	BT_GATT_CPF(&led_value_cpf),
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_BLUE_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_blue>>,
-		&rgb_led_values[RGB_LED_BLUE_INDEX])
+		&rgb_led_values[RGB_LED_BLUE_INDEX]),
+	BT_GATT_CUD("RGB LED Blue Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	BT_GATT_CPF(&led_value_cpf)
 );
 
 // Timer
@@ -112,6 +120,7 @@ static void temp_timer_handler(struct k_timer* timer)
 	k_mutex_lock(&main_mutex, K_FOREVER);
 
 	// SoC Die Temp
+	// todo: 排他制御あると値がうまく取れない
 	temp_sensor.fetch();
 	printk("Soc die temperature: %f\n", temp_sensor.get_value());
 
@@ -208,6 +217,12 @@ void cpp_main()
 		printk("BLE Advertising failed to start: %d\n", ret);
 		return;
 	}
+
+	led_value_cpf.format = 0x04;
+	led_value_cpf.exponent = 0x00;
+	led_value_cpf.unit = 0x2700;
+	led_value_cpf.name_space = 0x0001;
+	led_value_cpf.description = 0x00;
 
 	BLEGATT::init();
 
