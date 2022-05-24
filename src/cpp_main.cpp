@@ -12,6 +12,8 @@
 
 #include "rgb_led.h"
 
+K_MUTEX_DEFINE(main_mutex);
+
 // TEST LED
 #define LED0_NODE					DT_ALIAS(led0)
 // Temp Sensor
@@ -91,26 +93,38 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 );
 
 // Timer
-static void timer_handler(struct k_timer* timer)
+static void led_timer_handler(struct k_timer* timer)
 {
+	k_mutex_lock(&main_mutex, K_FOREVER);
+
 	// GPIO
-	int ret = led0.toggle();
+	const int ret = led0.toggle();
 	if (ret)
 	{
 		printk("GPIO led0 write failed: %d\n", ret);
-		return;
 	}
 
+	k_mutex_unlock(&main_mutex);
+}
+
+static void temp_timer_handler(struct k_timer* timer)
+{
+	k_mutex_lock(&main_mutex, K_FOREVER);
+
+	// SoC Die Temp
 	temp_sensor.fetch();
 	printk("Soc die temperature: %f\n", temp_sensor.get_value());
+
+	k_mutex_unlock(&main_mutex);
 }
 
 static void timer_stop_handler(struct k_timer* timer)
 {
-	printk("timer stopped");
+	printk("timer stopped\n");
 }
 
-K_TIMER_DEFINE(timer, timer_handler, timer_stop_handler);
+K_TIMER_DEFINE(led_timer, led_timer_handler, timer_stop_handler);
+K_TIMER_DEFINE(temp_timer, temp_timer_handler, nullptr);
 
 // Button
 #define BUTTON1_NODE				DT_NODELABEL(button1)
@@ -123,13 +137,11 @@ namespace {
 		printk("button1 pushed\n");
 
 		// todo: 操作してからBLE繋いでもGATT_ERRORでConnection張れない
-		/*
 		if (connection != nullptr)
 		{
 			rgb_led_values[RGB_LED_RED_INDEX] = RGBLED::pwm_on_pulse;
 		}
 		rgb_leds[RGB_LED_RED_INDEX]->set_usec(RGBLED::pwm_period, RGBLED::pwm_on_pulse);
-		*/
 	}
 }
 
@@ -145,7 +157,7 @@ void cpp_main()
 		return;
 	}
 	
-	ret = led0.configure(GPIO_OUTPUT_ACTIVE);
+	ret = led0.configure(GPIO_OUTPUT_INACTIVE);
 	if (ret)
 	{
 		printk("GPIO led0 configure failed: %d\n", ret);
@@ -198,5 +210,6 @@ void cpp_main()
 	// LED: Init Completed
 	RGBLED::init_completed_blink(rgb_led_green);
 
-	k_timer_start(&timer, K_NO_WAIT, K_MSEC(1000));
+	k_timer_start(&led_timer, K_NO_WAIT, K_MSEC(100));
+	k_timer_start(&temp_timer, K_MSEC(1000), K_MSEC(1000));
 }
