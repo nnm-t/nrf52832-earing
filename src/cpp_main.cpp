@@ -132,16 +132,24 @@ K_TIMER_DEFINE(temp_timer, temp_timer_handler, nullptr);
 namespace {
 	GPIOInterrupt button1(GPIO_DT_SPEC_GET(BUTTON1_NODE, gpios));
 
+	uint8_t led_preset_index = 0;
+
 	void on_button1_pushed(const struct device* port, struct gpio_callback* callback, gpio_port_pins_t pins)
 	{
 		printk("button1 pushed\n");
 
-		// todo: 操作してからBLE繋いでもGATT_ERRORでConnection張れない
-		if (connection != nullptr)
+		// todo: 操作してからBLE繋ぐとGATT_ERRORでConnection張れない
+		if (connection == nullptr)
 		{
-			rgb_led_values[RGB_LED_RED_INDEX] = RGBLED::pwm_on_pulse;
+			return;
 		}
-		rgb_leds[RGB_LED_RED_INDEX]->set_usec(RGBLED::pwm_period, RGBLED::pwm_on_pulse);
+
+		if (++led_preset_index >= RGBLED::led_presets_length)
+		{
+			led_preset_index = 0;
+		}
+
+		RGBLED::set_preset(rgb_leds, rgb_led_values, led_preset_index);
 	}
 }
 
