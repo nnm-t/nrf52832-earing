@@ -53,7 +53,7 @@ namespace {
 	};
 
 	struct bt_conn_cb connection_callback = {};
-	struct bt_conn* connection = nullptr;
+	struct bt_conn* bt_connection = nullptr;
 
 	void bt_on_connected(struct bt_conn* conn, uint8_t err)
 	{
@@ -64,12 +64,12 @@ namespace {
 		}
 
 		printk("BLE connected\n");
-		connection = conn;
+		bt_connection = conn;
 	}
 
 	void bt_on_disconnected(struct bt_conn* conn, uint8_t reason)
 	{
-		connection = nullptr;
+		bt_connection = nullptr;
 		printk("BLE disconnected: reason=%d\n", reason);
 	}
 
@@ -90,41 +90,59 @@ namespace {
 }
 
 BT_GATT_SERVICE_DEFINE(earing_service,
+	// index: 0
 	BT_GATT_PRIMARY_SERVICE(&service_uuid),
+	// index: 1, 2
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_RED_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_red>>,
 		&rgb_led_values[RGB_LED_RED_INDEX]),
+	// index: 3
 	BT_GATT_CUD("RGB LED Red Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	// index: 4
 	BT_GATT_CPF(&led_value_cpf),
+	// index: 5, 6
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_GREEN_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_green>>,
 		&rgb_led_values[RGB_LED_GREEN_INDEX]),
+	// index: 7
 	BT_GATT_CUD("RGB LED Green Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	// index: 8
 	BT_GATT_CPF(&led_value_cpf),
+	// index: 9, 10
 	BT_GATT_CHARACTERISTIC(&rgb_led_uuids[RGB_LED_BLUE_INDEX].uuid,
 		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_blue>>,
 		&rgb_led_values[RGB_LED_BLUE_INDEX]),
+	// index: 11
 	BT_GATT_CUD("RGB LED Blue Value (0x00-0xFF)", BT_GATT_PERM_READ),
+	// index: 12
 	BT_GATT_CPF(&led_value_cpf),
+	// index: 13, 14
 	BT_GATT_CHARACTERISTIC(&rgb_led_reset_uuid.uuid,
 		BT_GATT_CHRC_WRITE,
 		BT_GATT_PERM_WRITE,
 		nullptr, BLEGATT::write_characteristic<rgb_led_reset>, nullptr
 	),
+	// index: 15
 	BT_GATT_CUD("RGB LED Reset Values", BT_GATT_PERM_READ),
+	// index: 16
 	BT_GATT_CPF(&led_value_cpf),
+	// index: 17, 18
 	BT_GATT_CHARACTERISTIC(&soc_temp_uuid.uuid,
-		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_CHRC_NOTIFY,
 		BT_GATT_PERM_READ,
 		BLEGATT::read_characteristic, nullptr, &soc_temp_value
 	),
+	// index: 19
 	BT_GATT_CUD("SoC Die Temperature", BT_GATT_PERM_READ),
+	// index: 20
+	BT_GATT_CCC(nullptr, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+	// index: 21
 	BT_GATT_CPF(&soc_temp_cpf)
 );
 
@@ -151,6 +169,16 @@ static void temp_timer_handler(struct k_timer* timer)
 	temp_sensor.fetch();
 	soc_temp_value = temp_sensor.get_value();
 	printk("Soc die temperature: %f\n", soc_temp_value);
+
+	// BLE GATT Notify
+	if (bt_connection != nullptr)
+	{
+		const int ret = bt_gatt_notify(nullptr, &earing_service.attrs[17], &soc_temp_value, sizeof(soc_temp_value));
+		if (ret)
+		{
+			printk("characteristic notify failed: %d\n", ret);
+		}
+	}
 
 	k_mutex_unlock(&main_mutex);
 }
