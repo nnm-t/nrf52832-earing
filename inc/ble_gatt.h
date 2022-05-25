@@ -10,6 +10,8 @@
 #include <bluetooth/uuid.h>
 #include <bluetooth/gatt.h>
 
+#include "ble_gatt_format_type.h"
+
 using OnGATTCallback = void (*)(uint8_t*, uint16_t, uint16_t);
 
 class BLEGATT
@@ -22,6 +24,8 @@ class BLEGATT
 
 public:
 	static void init();
+
+	static struct bt_gatt_cpf create_cpf(const BLEGATTFormatType format, const uint8_t exponent = 0x00, const uint16_t unit = 0x0000, const uint16_t name_space = 0x0000, const uint16_t description = 0x00);
 
 	template<OnGATTCallback ON_READ_CALLBACK = nullptr> static ssize_t read_characteristic(struct bt_conn* conn, const struct bt_gatt_attr* attr, void* buf, uint16_t len, uint16_t offset);
 
@@ -50,10 +54,13 @@ template<OnGATTCallback ON_WRITE_CALLBACK> ssize_t BLEGATT::write_characteristic
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 
-	uint8_t* buffer = reinterpret_cast<uint8_t*>(const_cast<void*>(buf));
-	std::copy(buffer, buffer + len, value + offset);
+	if (value != nullptr)
+	{
+		uint8_t* buffer = reinterpret_cast<uint8_t*>(const_cast<void*>(buf));
+		std::copy(buffer, buffer + len, value + offset);
 
-	value[offset + len] = 0;
+		value[offset + len] = 0;
+	}
 
 	if (ON_WRITE_CALLBACK != nullptr)
 	{

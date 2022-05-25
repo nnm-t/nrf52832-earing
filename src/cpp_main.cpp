@@ -41,6 +41,8 @@ namespace {
 		BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xc398fa6b, 0x232c, 0x4abf, 0xbfb9, 0xfb92d4fb7e0a)),
 		BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xc5327e5c, 0xdd86, 0x424c, 0x84de, 0x1a3cb594a228))
 	};
+	struct bt_uuid_128 rgb_led_reset_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xd6d1f3d3, 0xb638, 0x473c, 0x8e19, 0x00c622592713));
+	struct bt_uuid_128 soc_temp_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0x9a6e36b8, 0x5ec7, 0x47f2, 0xb3fe, 0xa68e5c7081e0));
 
 	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse};
 
@@ -71,7 +73,20 @@ namespace {
 		printk("BLE disconnected: reason=%d\n", reason);
 	}
 
+	void rgb_led_reset(uint8_t* value, uint16_t len, uint16_t offset)
+	{
+		RGBLED::set_preset(rgb_leds, rgb_led_values, 0);
+	}
+
 	struct bt_gatt_cpf led_value_cpf;
+	struct bt_gatt_cpf soc_temp_cpf;
+
+	constexpr uint16_t cpf_unit_unitless = 0x00;
+	constexpr uint16_t cpf_unit_temp_celsius = 0x272f;
+	constexpr uint16_t cpf_name_space_first = 0x0001;
+	constexpr uint16_t cpf_name_space_second = 0x0002;
+
+	float soc_temp_value;
 }
 
 BT_GATT_SERVICE_DEFINE(earing_service,
@@ -96,7 +111,21 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_characteristic<rgb_led_blue>>,
 		&rgb_led_values[RGB_LED_BLUE_INDEX]),
 	BT_GATT_CUD("RGB LED Blue Value (0x00-0xFF)", BT_GATT_PERM_READ),
-	BT_GATT_CPF(&led_value_cpf)
+	BT_GATT_CPF(&led_value_cpf),
+	BT_GATT_CHARACTERISTIC(&rgb_led_reset_uuid.uuid,
+		BT_GATT_CHRC_WRITE,
+		BT_GATT_PERM_WRITE,
+		nullptr, BLEGATT::write_characteristic<rgb_led_reset>, nullptr
+	),
+	BT_GATT_CUD("RGB LED Reset Values", BT_GATT_PERM_READ),
+	BT_GATT_CPF(&led_value_cpf),
+	BT_GATT_CHARACTERISTIC(&soc_temp_uuid.uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+		BT_GATT_PERM_READ,
+		BLEGATT::read_characteristic, nullptr, &soc_temp_value
+	),
+	BT_GATT_CUD("SoC Die Temperature", BT_GATT_PERM_READ),
+	BT_GATT_CPF(&soc_temp_cpf)
 );
 
 // Timer
@@ -120,7 +149,8 @@ static void temp_timer_handler(struct k_timer* timer)
 
 	// SoC Die Temp
 	temp_sensor.fetch();
-	printk("Soc die temperature: %f\n", temp_sensor.get_value());
+	soc_temp_value = temp_sensor.get_value();
+	printk("Soc die temperature: %f\n", soc_temp_value);
 
 	k_mutex_unlock(&main_mutex);
 }
@@ -215,11 +245,8 @@ void cpp_main()
 		return;
 	}
 
-	led_value_cpf.format = 0x04;
-	led_value_cpf.exponent = 0x00;
-	led_value_cpf.unit = 0x2700;
-	led_value_cpf.name_space = 0x0001;
-	led_value_cpf.description = 0x00;
+	led_value_cpf = BLEGATT::create_cpf(BLEGATTFormatType::UINT8, 0x00, cpf_unit_unitless, cpf_name_space_first);
+	soc_temp_cpf = BLEGATT::create_cpf(BLEGATTFormatType::FLOAT32, 0x00, cpf_unit_temp_celsius, cpf_name_space_second);
 
 	connection_callback.connected = bt_on_connected;
 	connection_callback.disconnected = bt_on_disconnected;
