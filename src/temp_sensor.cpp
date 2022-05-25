@@ -1,13 +1,16 @@
 #include "temp_sensor.h"
 
-void TempSensor::fetch()
+void TempSensor::init(const struct device* device)
 {
+	_device = device;
 	if (!device_is_ready(_device))
 	{
 		printk("temp sensor device is not ready\n");
-		return;
 	}
+}
 
+void TempSensor::fetch()
+{
 	struct sensor_value value_struct;
 	int ret;
 

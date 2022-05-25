@@ -7,14 +7,11 @@
 
 class TempSensor
 {
-	const struct device* _device = nullptr;
+	const struct device* _device;
 	float _value = 0;
 
 public:
-	TempSensor(const struct device* device) : _device(device)
-	{
-
-	}
+	void init(const struct device* device);
 
 	float get_value() const
 	{

@@ -28,8 +28,7 @@ namespace {
 
 	std::array<PWM*, 3> rgb_leds = { &rgb_led_red, &rgb_led_green, &rgb_led_blue };
 
-	const struct device* temp_sensor_device = DEVICE_DT_GET(TEMP_SENSOR_NODE);
-	TempSensor temp_sensor(temp_sensor_device);
+	TempSensor temp_sensor;
 }
 
 // GAP/GATT
@@ -120,7 +119,6 @@ static void temp_timer_handler(struct k_timer* timer)
 	k_mutex_lock(&main_mutex, K_FOREVER);
 
 	// SoC Die Temp
-	// todo: 排他制御あると値がうまく取れない
 	temp_sensor.fetch();
 	printk("Soc die temperature: %f\n", temp_sensor.get_value());
 
@@ -147,12 +145,7 @@ namespace {
 	{
 		printk("button1 pushed\n");
 
-		// todo: 操作してからBLE繋ぐとGATT_ERRORでConnection張れない
-		if (connection == nullptr)
-		{
-			return;
-		}
-
+		// 先にボタン操作してから接続する場合、GATT_ERRORで何度か再試行が必要
 		if (++led_preset_index >= RGBLED::led_presets_length)
 		{
 			led_preset_index = 0;
@@ -191,6 +184,7 @@ void cpp_main()
 	if (ret)
 	{
 		printk("GPIO button1 configure failed: %d\n", ret);
+		return;
 	}
 
 	button1.init_callback(on_button1_pushed);
@@ -198,7 +192,10 @@ void cpp_main()
 	if (ret)
 	{
 		printk("GPIO button1 add callback failed: %d\n", ret);
+		return;
 	}
+
+	temp_sensor.init(DEVICE_DT_GET(TEMP_SENSOR_NODE));
 
 	for (PWM* rgb_led : rgb_leds)
 	{
@@ -224,11 +221,11 @@ void cpp_main()
 	led_value_cpf.name_space = 0x0001;
 	led_value_cpf.description = 0x00;
 
-	BLEGATT::init();
-
 	connection_callback.connected = bt_on_connected;
 	connection_callback.disconnected = bt_on_disconnected;
 	BLE::register_connection_callback(&connection_callback);
+
+	BLEGATT::init();
 
 	// LED: Init Completed
 	RGBLED::init_completed_blink(rgb_led_green);
