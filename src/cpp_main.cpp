@@ -52,8 +52,7 @@ namespace {
 		BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_SERVICE)
 	};
 
-	struct bt_conn_cb connection_callback = {};
-	struct bt_conn* bt_connection = nullptr;
+	BLE ble;
 
 	void bt_on_connected(struct bt_conn* conn, uint8_t err)
 	{
@@ -64,27 +63,29 @@ namespace {
 		}
 
 		printk("BLE connected\n");
-		bt_connection = conn;
+		ble.set_connection(conn);
 	}
 
 	void bt_on_disconnected(struct bt_conn* conn, uint8_t reason)
 	{
-		bt_connection = nullptr;
+		ble.set_connection(nullptr);
 		printk("BLE disconnected: reason=%d\n", reason);
 	}
 
+	struct bt_conn_cb bt_connection_callback = BLE::create_connection_callback(bt_on_connected, bt_on_disconnected);
+
 	void rgb_led_reset(uint8_t* value, uint16_t len, uint16_t offset)
 	{
-		RGBLED::set_preset(rgb_leds, rgb_led_values, 0);
+		RGBLED::reset(rgb_leds, rgb_led_values);
 	}
-
-	struct bt_gatt_cpf led_value_cpf;
-	struct bt_gatt_cpf soc_temp_cpf;
 
 	constexpr uint16_t cpf_unit_unitless = 0x00;
 	constexpr uint16_t cpf_unit_temp_celsius = 0x272f;
 	constexpr uint16_t cpf_name_space_first = 0x0001;
 	constexpr uint16_t cpf_name_space_second = 0x0002;
+
+	struct bt_gatt_cpf led_value_cpf = BLEGATT::create_cpf(BLEGATTFormatType::UINT8, 0x00, cpf_unit_unitless, cpf_name_space_first);
+	struct bt_gatt_cpf soc_temp_cpf = BLEGATT::create_cpf(BLEGATTFormatType::FLOAT32, 0x00, cpf_unit_temp_celsius, cpf_name_space_second);
 
 	float soc_temp_value;
 }
@@ -171,7 +172,7 @@ static void temp_timer_handler(struct k_timer* timer)
 	printk("Soc die temperature: %f\n", soc_temp_value);
 
 	// BLE GATT Notify
-	if (bt_connection != nullptr)
+	if (ble.is_connected())
 	{
 		const int ret = bt_gatt_notify(nullptr, &earing_service.attrs[17], &soc_temp_value, sizeof(soc_temp_value));
 		if (ret)
@@ -273,12 +274,7 @@ void cpp_main()
 		return;
 	}
 
-	led_value_cpf = BLEGATT::create_cpf(BLEGATTFormatType::UINT8, 0x00, cpf_unit_unitless, cpf_name_space_first);
-	soc_temp_cpf = BLEGATT::create_cpf(BLEGATTFormatType::FLOAT32, 0x00, cpf_unit_temp_celsius, cpf_name_space_second);
-
-	connection_callback.connected = bt_on_connected;
-	connection_callback.disconnected = bt_on_disconnected;
-	BLE::register_connection_callback(&connection_callback);
+	BLE::register_connection_callback(&bt_connection_callback);
 
 	BLEGATT::init();
 

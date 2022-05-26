@@ -61,6 +61,11 @@ public:
 	template<PWM& LED_PWM> static void on_write_characteristic(uint8_t* value, uint16_t length, uint16_t offset);
 	
 	static void set_preset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_num>& values, const uint8_t index);
+
+	static void reset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_num>& values)
+	{
+		set_preset(leds, values, pwm_off_pulse);
+	}
 };
 
 template<PWM& LED_PWM> void RGBLED::on_write_characteristic(uint8_t* value, uint16_t length, uint16_t offset)
