@@ -37,3 +37,11 @@ void RGBLED::set_preset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_
 		leds[i]->set_usec(pwm_period, led_presets[index][i]);
 	}
 }
+
+void RGBLED::increment_preset_index()
+{
+	if (++_preset_index >= led_presets_length)
+	{
+		_preset_index = 0;
+	}
+}

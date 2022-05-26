@@ -53,8 +53,25 @@ private:
 		{ pwm_on_pulse, pwm_off_pulse, pwm_on_pulse }		// Pink
 	};
 
+	std::array<PWM*, 3> _leds;
+	std::array<uint8_t, 3>& _values;
+	uint8_t _preset_index = 0;
+
 public:
+	RGBLED(PWM& led_red, PWM& led_green, PWM& led_blue, std::array<uint8_t, 3>& values) : _leds({ &led_red, &led_green, &led_blue }), _values(values)
+	{
+
+	}
+
 	static void init(PWM* led_pwm);
+
+	void init()
+	{
+		for (PWM* led : _leds)
+		{
+			init(led);
+		}
+	}
 
 	static void init_completed_blink(PWM& led_pwm);
 
@@ -62,9 +79,31 @@ public:
 	
 	static void set_preset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_num>& values, const uint8_t index);
 
+	void set_preset(const uint8_t index)
+	{
+		set_preset(_leds, _values, index);
+	}
+
+	void set_preset()
+	{
+		set_preset(_preset_index);
+	}
+
+	uint8_t get_preset_index() const
+	{
+		return _preset_index;
+	}
+
+	void increment_preset_index();
+
 	static void reset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_num>& values)
 	{
 		set_preset(leds, values, pwm_off_pulse);
+	}
+
+	void reset()
+	{
+		reset(_leds, _values);
 	}
 };
 

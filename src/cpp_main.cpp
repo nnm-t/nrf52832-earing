@@ -26,7 +26,14 @@ namespace {
 	PWM rgb_led_green(DEVICE_DT_GET(RGB_LED_GREEN_CTLR_NODE), RGB_LED_BLUE_CHANNEL, RGB_LED_GREEN_FLAGS);
 	PWM rgb_led_blue(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS);
 
-	std::array<PWM*, 3> rgb_leds = { &rgb_led_red, &rgb_led_green, &rgb_led_blue };
+	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse};
+
+	RGBLED rgb_led(rgb_led_red, rgb_led_green, rgb_led_blue, rgb_led_values);
+
+	void rgb_led_reset(uint8_t* value, uint16_t len, uint16_t offset)
+	{
+		rgb_led.reset();
+	}
 
 	TempSensor temp_sensor;
 }
@@ -43,8 +50,6 @@ namespace {
 	};
 	struct bt_uuid_128 rgb_led_reset_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xd6d1f3d3, 0xb638, 0x473c, 0x8e19, 0x00c622592713));
 	struct bt_uuid_128 soc_temp_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0x9a6e36b8, 0x5ec7, 0x47f2, 0xb3fe, 0xa68e5c7081e0));
-
-	std::array<uint8_t, 3> rgb_led_values = {RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse, RGBLED::pwm_off_pulse};
 
 	const struct bt_le_adv_param* advertising_param = BLEGAP::get_advertising_param();
 	struct bt_data advertising_data[] = {
@@ -73,11 +78,6 @@ namespace {
 	}
 
 	struct bt_conn_cb bt_connection_callback = BLE::create_connection_callback(bt_on_connected, bt_on_disconnected);
-
-	void rgb_led_reset(uint8_t* value, uint16_t len, uint16_t offset)
-	{
-		RGBLED::reset(rgb_leds, rgb_led_values);
-	}
 
 	constexpr uint16_t cpf_unit_unitless = 0x00;
 	constexpr uint16_t cpf_unit_temp_celsius = 0x272f;
@@ -198,19 +198,13 @@ K_TIMER_DEFINE(temp_timer, temp_timer_handler, nullptr);
 namespace {
 	GPIOInterrupt button1(GPIO_DT_SPEC_GET(BUTTON1_NODE, gpios));
 
-	uint8_t led_preset_index = 0;
-
 	void on_button1_pushed(const struct device* port, struct gpio_callback* callback, gpio_port_pins_t pins)
 	{
 		printk("button1 pushed\n");
 
 		// 先にボタン操作してから接続する場合、GATT_ERRORで何度か再試行が必要
-		if (++led_preset_index >= RGBLED::led_presets_length)
-		{
-			led_preset_index = 0;
-		}
-
-		RGBLED::set_preset(rgb_leds, rgb_led_values, led_preset_index);
+		rgb_led.increment_preset_index();
+		rgb_led.set_preset();
 	}
 }
 
@@ -256,10 +250,7 @@ void cpp_main()
 
 	temp_sensor.init(DEVICE_DT_GET(TEMP_SENSOR_NODE));
 
-	for (PWM* rgb_led : rgb_leds)
-	{
-		RGBLED::init(rgb_led);
-	}
+	rgb_led.init();
 
 	ret = BLE::init();
 	if (ret != 0)
