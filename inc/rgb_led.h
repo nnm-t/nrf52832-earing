@@ -38,19 +38,20 @@ class RGBLED
 public:
 	static constexpr const uint8_t pwm_period = characteristic_max_value;
 	static constexpr const uint8_t pwm_on_pulse = 0x10;
+	static constexpr const uint8_t pwm_on_red_pulse = pwm_on_pulse >> 1;
 	static constexpr const uint8_t pwm_off_pulse = 0x00;
 	static constexpr const uint8_t led_presets_length = 8;
 
 private:
 	static constexpr uint8_t led_presets[led_presets_length][led_num] = {
-		{ pwm_off_pulse, pwm_off_pulse, pwm_off_pulse },	// Off
-		{ pwm_on_pulse, pwm_on_pulse, pwm_on_pulse },		// White
-		{ pwm_on_pulse, pwm_off_pulse, pwm_off_pulse },		// Red
-		{ pwm_off_pulse, pwm_on_pulse, pwm_off_pulse },		// Green
-		{ pwm_off_pulse, pwm_off_pulse, pwm_on_pulse },		// Blue
-		{ pwm_on_pulse, pwm_on_pulse, pwm_off_pulse },		// Orange
-		{ pwm_off_pulse, pwm_on_pulse, pwm_on_pulse },		// Skyblue
-		{ pwm_on_pulse, pwm_off_pulse, pwm_on_pulse }		// Pink
+		{ pwm_off_pulse, pwm_off_pulse, pwm_off_pulse },		// Off
+		{ pwm_on_red_pulse, pwm_on_pulse, pwm_on_pulse },		// White
+		{ pwm_on_red_pulse, pwm_off_pulse, pwm_off_pulse },		// Red
+		{ pwm_off_pulse, pwm_on_pulse, pwm_off_pulse },			// Green
+		{ pwm_off_pulse, pwm_off_pulse, pwm_on_pulse },			// Blue
+		{ pwm_on_red_pulse, pwm_on_pulse, pwm_off_pulse },		// Orange
+		{ pwm_off_pulse, pwm_on_pulse, pwm_on_pulse },			// Skyblue
+		{ pwm_on_red_pulse, pwm_off_pulse, pwm_on_pulse }		// Pink
 	};
 
 	std::array<PWM*, 3> _leds;
