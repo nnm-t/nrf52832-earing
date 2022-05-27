@@ -28,13 +28,3 @@ void BLEGATT::mtu_updated(struct bt_conn* conn, uint16_t tx, uint16_t rx)
 {
 	printk("Updated MTU: TX=%d, RX=%d\n", tx, rx);
 }
-
-template<> void BLEGATT::read_characteristic_callback<nullptr>(uint8_t* value, uint16_t len, uint16_t offset)
-{
-
-}
-
-template<> void BLEGATT::write_characteristic_callback<nullptr>(uint8_t* value, uint16_t len, uint16_t offset)
-{
-
-}

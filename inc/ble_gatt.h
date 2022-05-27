@@ -22,10 +22,6 @@ class BLEGATT
 
 	static void mtu_updated(struct bt_conn* conn, uint16_t tx, uint16_t rx);
 
-	template<OnGATTCallback ON_READ_CALLBACK> static void read_characteristic_callback(uint8_t* value, uint16_t len, uint16_t offset);
-
-	template<OnGATTCallback ON_WRITE_CALLBACK> static void write_characteristic_callback(uint8_t* value, uint16_t len, uint16_t offset);
-
 public:
 	static void init();
 
@@ -36,21 +32,14 @@ public:
 	template<OnGATTCallback ON_WRITE_CALLBACK = nullptr> static ssize_t write_characteristic(struct bt_conn* conn, const struct bt_gatt_attr* attr, const void* buf, uint16_t len, uint16_t offset, uint8_t flags);
 };
 
-template<OnGATTCallback ON_READ_CALLBACK> void BLEGATT::read_characteristic_callback(uint8_t* value, uint16_t len, uint16_t offset)
-{
-	ON_READ_CALLBACK(value, len, offset);
-}
-
-template<OnGATTCallback ON_WRITE_CALLBACK> void BLEGATT::write_characteristic_callback(uint8_t* value, uint16_t len, uint16_t offset)
-{
-	ON_WRITE_CALLBACK(value, len, offset);
-}
-
 template<OnGATTCallback ON_READ_CALLBACK> ssize_t BLEGATT::read_characteristic(struct bt_conn* conn, const struct bt_gatt_attr* attr, void* buf, uint16_t len, uint16_t offset)
 {
 	uint8_t* value = reinterpret_cast<uint8_t*>(attr->user_data);
 
-	read_characteristic_callback<ON_READ_CALLBACK>(value, len, offset);
+	if (ON_READ_CALLBACK != nullptr)
+	{
+		ON_READ_CALLBACK(value, len, offset);
+	}
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value, strlen(reinterpret_cast<char*>(value)));
 }
@@ -72,7 +61,10 @@ template<OnGATTCallback ON_WRITE_CALLBACK> ssize_t BLEGATT::write_characteristic
 		value[offset + len] = 0;
 	}
 
-	write_characteristic_callback<ON_WRITE_CALLBACK>(value, len, offset);
+	if (ON_WRITE_CALLBACK != nullptr)
+	{
+		ON_WRITE_CALLBACK(value, len, offset);
+	}
 
 	return len;
 }
