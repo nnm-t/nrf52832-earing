@@ -77,6 +77,19 @@ namespace {
 		printk("BLE disconnected: reason=%d\n", reason);
 	}
 
+	uint16_t soc_temp_cccd_value = 0;
+
+	void soc_temp_cccd_changed(const struct bt_gatt_attr* attr, uint16_t value)
+	{
+		soc_temp_cccd_value = value;
+		printk("SoC die temperature CCCD changed: %d\n", value);
+	}
+
+	bool soc_temp_cccd_is_notify()
+	{
+		return (soc_temp_cccd_value & 0x01) == 0x01;
+	}
+
 	struct bt_conn_cb bt_connection_callback = BLE::create_connection_callback(bt_on_connected, bt_on_disconnected);
 
 	constexpr uint16_t cpf_unit_unitless = 0x00;
@@ -142,7 +155,7 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 	// index: 19
 	BT_GATT_CUD("SoC Die Temperature", BT_GATT_PERM_READ),
 	// index: 20
-	BT_GATT_CCC(nullptr, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+	BT_GATT_CCC(soc_temp_cccd_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 	// index: 21
 	BT_GATT_CPF(&soc_temp_cpf)
 );
@@ -172,7 +185,7 @@ static void temp_timer_handler(struct k_timer* timer)
 	printk("Soc die temperature: %f\n", soc_temp_value);
 
 	// BLE GATT Notify
-	if (ble.is_connected())
+	if (ble.is_connected() && soc_temp_cccd_is_notify())
 	{
 		const int ret = bt_gatt_notify(nullptr, &earing_service.attrs[17], &soc_temp_value, sizeof(soc_temp_value));
 		if (ret)
