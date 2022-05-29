@@ -57,8 +57,7 @@ template<OnGATTCallback ON_WRITE_CALLBACK> ssize_t BLEGATT::write_characteristic
 	{
 		uint8_t* buffer = reinterpret_cast<uint8_t*>(const_cast<void*>(buf));
 		std::copy(buffer, buffer + len, value + offset);
-
-		value[offset + len] = 0;
+		// 文字列の場合は次の位置にゼロ書き込む
 	}
 
 	if (ON_WRITE_CALLBACK != nullptr)
