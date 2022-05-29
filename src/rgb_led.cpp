@@ -53,7 +53,7 @@ void RGBLED::set_preset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_
 	for (uint8_t i = 0; i < led_num; i++)
 	{
 		values[i] = led_presets[index][i];
-		leds[i]->set_usec(pwm_period, led_presets[index][i]);
+		set(leds[i], values[i]);
 	}
 }
 
