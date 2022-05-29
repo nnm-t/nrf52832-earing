@@ -1,9 +1,10 @@
 #include "rgb_led.h"
 
 constexpr uint8_t RGBLED::led_presets[led_presets_length][led_num];
-uint8_t RGBLED::pattern;
 uint32_t RGBLED::pulse_ratio = pulse_ratio_max;
 bool RGBLED::is_pulse_ratio_down = false;
+uint8_t RGBLED::count_blink = 0;
+uint8_t RGBLED::pattern = RGB_LED_PATTERN_STATIC;
 
 void RGBLED::init(PWM* led_pwm)
 {
@@ -71,7 +72,11 @@ void RGBLED::update_pattern()
 	{
 		case RGB_LED_PATTERN_BLINK:
 			// 点滅
-			pulse_ratio = pulse_ratio > pulse_ratio_min ? pulse_ratio_min : pulse_ratio_max;
+			if (count_blink++ > count_blink_threshold)
+			{
+				count_blink = 0;
+				pulse_ratio = pulse_ratio > pulse_ratio_min ? pulse_ratio_min : pulse_ratio_max;
+			}
 			break;
 		case RGB_LED_PATTERN_FADE:
 			// Fade方向転換

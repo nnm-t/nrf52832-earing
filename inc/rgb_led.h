@@ -44,6 +44,12 @@ class RGBLED
 	static constexpr const uint32_t pulse_ratio_max = 16;
 	static constexpr const uint32_t pulse_ratio_min = 0;
 
+	static constexpr const uint8_t count_blink_threshold = 5;
+
+	static uint32_t pulse_ratio;
+	static bool is_pulse_ratio_down;
+	static uint8_t count_blink;
+
 public:
 	static constexpr const uint8_t pwm_period = characteristic_max_value;
 	static constexpr const uint8_t pwm_on_pulse = 0x10;
@@ -52,8 +58,6 @@ public:
 	static constexpr const uint8_t led_presets_length = 8;
 
 	static uint8_t pattern;
-	static uint32_t pulse_ratio;
-	static bool is_pulse_ratio_down;
 
 private:
 	static constexpr uint8_t led_presets[led_presets_length][led_num] = {
