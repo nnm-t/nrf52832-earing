@@ -29,11 +29,20 @@ enum {
 	RGB_LED_BLUE_INDEX
 };
 
+enum {
+	RGB_LED_PATTERN_STATIC,
+	RGB_LED_PATTERN_BLINK,
+	RGB_LED_PATTERN_FADE
+};
+
 class RGBLED
 {
 	static constexpr const uint8_t characteristic_max_value = 255;
 	static constexpr const int init_blink_interval = 250;
 	static constexpr const uint8_t led_num = 3;
+
+	static constexpr const uint32_t pulse_ratio_max = 16;
+	static constexpr const uint32_t pulse_ratio_min = 0;
 
 public:
 	static constexpr const uint8_t pwm_period = characteristic_max_value;
@@ -41,6 +50,10 @@ public:
 	static constexpr const uint8_t pwm_on_red_pulse = pwm_on_pulse >> 1;
 	static constexpr const uint8_t pwm_off_pulse = 0x00;
 	static constexpr const uint8_t led_presets_length = 8;
+
+	static uint8_t pattern;
+	static uint32_t pulse_ratio;
+	static bool is_pulse_ratio_down;
 
 private:
 	static constexpr uint8_t led_presets[led_presets_length][led_num] = {
@@ -77,8 +90,12 @@ public:
 	static void init_completed_blink(PWM& led_pwm);
 
 	template<PWM& LED_PWM> static void on_write_characteristic(uint8_t* value, uint16_t length, uint16_t offset);
+
+	static void on_write_pattern_characteristic(uint8_t* value, uint16_t length, uint16_t offset);
 	
 	static void set_preset(std::array<PWM*, led_num> leds, std::array<uint8_t, led_num>& values, const uint8_t index);
+
+	static void set(PWM* led_pwm, const uint8_t value);
 
 	void set_preset(const uint8_t index)
 	{
@@ -106,6 +123,10 @@ public:
 	{
 		reset(_leds, _values);
 	}
+
+	static void update_pattern();
+
+	void update();
 };
 
 template<PWM& LED_PWM> void RGBLED::on_write_characteristic(uint8_t* value, uint16_t length, uint16_t offset)
@@ -116,10 +137,5 @@ template<PWM& LED_PWM> void RGBLED::on_write_characteristic(uint8_t* value, uint
 	}
 
 	const uint8_t pulse = *value;
-	const int ret = LED_PWM.set_usec(pwm_period, pulse);
-	if (ret)
-	{
-		printk("PWM write failed: %d\n", ret);
-		return;
-	}
+	set(&LED_PWM, pulse);
 }

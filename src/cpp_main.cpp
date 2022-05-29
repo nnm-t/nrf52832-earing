@@ -49,6 +49,7 @@ namespace {
 		BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xc5327e5c, 0xdd86, 0x424c, 0x84de, 0x1a3cb594a228))
 	};
 	struct bt_uuid_128 rgb_led_reset_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xd6d1f3d3, 0xb638, 0x473c, 0x8e19, 0x00c622592713));
+	struct bt_uuid_128 rgb_led_pattern_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0xcd235adf, 0xe222, 0x460f, 0x8a6d, 0x63cb1dea0178));
 	struct bt_uuid_128 soc_temp_uuid = BT_UUID_INIT_128(BT_UUID_128_ENCODE(0x9a6e36b8, 0x5ec7, 0x47f2, 0xb3fe, 0xa68e5c7081e0));
 
 	const struct bt_le_adv_param* advertising_param = BLEGAP::get_advertising_param();
@@ -157,7 +158,16 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 	// index: 20
 	BT_GATT_CCC(soc_temp_cccd_changed, BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 	// index: 21
-	BT_GATT_CPF(&soc_temp_cpf)
+	BT_GATT_CPF(&soc_temp_cpf),
+	// index: 22, 23
+	BT_GATT_CHARACTERISTIC(&rgb_led_pattern_uuid.uuid,
+		BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
+		BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+		BLEGATT::read_characteristic, BLEGATT::write_characteristic<RGBLED::on_write_pattern_characteristic>, &RGBLED::pattern),
+	// index: 24
+	BT_GATT_CUD("RGB LED Lighting Pattern", BT_GATT_PERM_READ),
+	// index: 25
+	BT_GATT_CPF(&led_value_cpf)
 );
 
 // Timer
@@ -171,6 +181,15 @@ static void led_timer_handler(struct k_timer* timer)
 	{
 		printk("GPIO led0 write failed: %d\n", ret);
 	}
+
+	k_mutex_unlock(&main_mutex);
+}
+
+static void led_pattern_timer_handler(struct k_timer* timer)
+{
+	k_mutex_lock(&main_mutex, K_FOREVER);
+
+	rgb_led.update();
 
 	k_mutex_unlock(&main_mutex);
 }
@@ -203,6 +222,7 @@ static void timer_stop_handler(struct k_timer* timer)
 }
 
 K_TIMER_DEFINE(led_timer, led_timer_handler, timer_stop_handler);
+K_TIMER_DEFINE(led_pattern_timer, led_pattern_timer_handler, timer_stop_handler);
 K_TIMER_DEFINE(temp_timer, temp_timer_handler, nullptr);
 
 // Button
@@ -286,5 +306,6 @@ void cpp_main()
 	RGBLED::init_completed_blink(rgb_led_green);
 
 	k_timer_start(&led_timer, K_NO_WAIT, K_MSEC(100));
+	k_timer_start(&led_pattern_timer, K_MSEC(100), K_MSEC(100));
 	k_timer_start(&temp_timer, K_MSEC(1000), K_MSEC(1000));
 }
