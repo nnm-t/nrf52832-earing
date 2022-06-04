@@ -14,14 +14,10 @@
 
 K_MUTEX_DEFINE(main_mutex);
 
-// TEST LED
-#define LED0_NODE					DT_ALIAS(led0)
 // Temp Sensor
 #define TEMP_SENSOR_NODE			DT_NODELABEL(temp)
 
 namespace {
-	GPIO led0(GPIO_DT_SPEC_GET(LED0_NODE, gpios));
-
 	PWM rgb_led_red(DEVICE_DT_GET(RGB_LED_RED_CTLR_NODE), RGB_LED_RED_CHANNEL, RGB_LED_RED_FLAGS);
 	PWM rgb_led_green(DEVICE_DT_GET(RGB_LED_GREEN_CTLR_NODE), RGB_LED_BLUE_CHANNEL, RGB_LED_GREEN_FLAGS);
 	PWM rgb_led_blue(DEVICE_DT_GET(RGB_LED_BLUE_CTLR_NODE), RGB_LED_GREEN_CHANNEL, RGB_LED_BLUE_FLAGS);
@@ -171,20 +167,6 @@ BT_GATT_SERVICE_DEFINE(earing_service,
 );
 
 // Timer
-static void led_timer_handler(struct k_timer* timer)
-{
-	k_mutex_lock(&main_mutex, K_FOREVER);
-
-	// GPIO
-	const int ret = led0.toggle();
-	if (ret)
-	{
-		printk("GPIO led0 write failed: %d\n", ret);
-	}
-
-	k_mutex_unlock(&main_mutex);
-}
-
 static void led_pattern_timer_handler(struct k_timer* timer)
 {
 	k_mutex_lock(&main_mutex, K_FOREVER);
@@ -221,7 +203,6 @@ static void timer_stop_handler(struct k_timer* timer)
 	printk("timer stopped\n");
 }
 
-K_TIMER_DEFINE(led_timer, led_timer_handler, timer_stop_handler);
 K_TIMER_DEFINE(led_pattern_timer, led_pattern_timer_handler, timer_stop_handler);
 K_TIMER_DEFINE(temp_timer, temp_timer_handler, nullptr);
 
@@ -246,19 +227,6 @@ void cpp_main()
 	int ret;
 
 	printk("Hello World! %s\n", CONFIG_BOARD);
-
-	if (!led0.is_ready())
-	{
-		printk("GPIO led0 is not ready\n");
-		return;
-	}
-	
-	ret = led0.configure(GPIO_OUTPUT_INACTIVE);
-	if (ret)
-	{
-		printk("GPIO led0 configure failed: %d\n", ret);
-		return;
-	}
 
 	if (!button1.is_ready())
 	{
@@ -305,7 +273,6 @@ void cpp_main()
 	// LED: Init Completed
 	RGBLED::init_completed_blink(rgb_led_green);
 
-	k_timer_start(&led_timer, K_NO_WAIT, K_MSEC(100));
 	k_timer_start(&led_pattern_timer, K_MSEC(100), K_MSEC(100));
 	k_timer_start(&temp_timer, K_MSEC(1000), K_MSEC(1000));
 }

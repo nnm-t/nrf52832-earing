@@ -16,7 +16,13 @@
 	};
 };
 
+&led0 {
+	status = "disabled";
+};
+
+
 &led1 {
+	status = "disabled";
 	gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
 };
 
@@ -31,6 +37,7 @@
 };
 
 &button0 {
+	status = "disabled";
 	gpios = <&gpio0 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
 };
 
