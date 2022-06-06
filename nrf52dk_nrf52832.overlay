@@ -8,10 +8,10 @@
 			pwms = <&pwm0 28>;
 		};
 		green: green {
-			pwms = <&pwm0 29>;
+			pwms = <&pwm0 30>;
 		};
 		blue: blue {
-			pwms = <&pwm0 30>;
+			pwms = <&pwm0 29>;
 		};
 	};
 };
